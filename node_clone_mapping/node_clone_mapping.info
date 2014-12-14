@@ -1,0 +1,5 @@
+name = Node Clone Mapping
+description = Builds mapping between cloned content and allows cloning comments
+core = 7.x
+dependencies[] = clone
+configure = admin/config/content/mapping

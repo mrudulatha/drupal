@@ -1,0 +1,81 @@
+<?php
+
+/**
+ * @file
+ * Create mapping for the cloned nodes and copy comments. 
+ */
+
+include_once 'node_clone_mapping.common.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function node_clone_mapping_menu() {
+  $items = array();
+  $items['admin/config/content/mapping'] = array(
+    'title' => 'Node Clone Mapping',
+    'description' => 'Allows users to map cloned nodes and also clones comments from parent node and vice versa.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('node_clone_mapping_administration_form'),
+    'access arguments' => array('administer node clone mapping'),
+    'file' => 'node_clone_mapping.admin.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function node_clone_mapping_permission() {
+  return array(
+    'administer node clone mapping' => array(
+      'title' => t('Administer node clone mapping'),
+      'description' => t('Administer node clone mapping.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function node_clone_mapping_node_insert($node) {
+  $clone_node_types = variable_get('clone_mapping_content_type', array());
+  if (isset($node->clone_from_original_nid)) {
+    $node->pid = $node->clone_from_original_nid;
+    if (in_array($node->type, $clone_node_types)) {
+      db_insert('node_clone_map')->fields(array(
+          'pnid' => $node->pid,
+          'cnid' => $node->nid,
+        ))->execute();
+      $copy_mapping_comments = variable_get('copy_mapping_comments', '');
+      if ($copy_mapping_comments) {
+        $comment_count = db_query("SELECT COUNT(cid) AS count FROM {comment} WHERE nid =:nid", array(":nid" => $node->pid))->fetchField();
+        if ($comment_count > 0) {
+          $parent_node = node_load($node->pid);
+          $cids = comment_get_thread($parent_node, COMMENT_MODE_FLAT, $comment_count);
+          foreach ($cids as $cid) {
+            _node_clone_mapping_comment_copy($node->nid, $cid);
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function node_clone_mapping_form_alter(&$form, &$form_state, $form_id) {
+  $copy_mapping_comments_hierarchy = variable_get('copy_mapping_comments_hierarchy', '');
+  if (preg_match('/comment_node_/', $form_id) && $copy_mapping_comments_hierarchy) {
+    $form['#submit'][] = 'node_clone_mapping_copy_comments_submit';
+  }
+}
+
+/**
+ * Custom submit handler to copy comments along the cloned nodes.
+ */
+function node_clone_mapping_copy_comments_submit(&$form, &$form_state) {
+  $comment = $form_state['comment'];
+  _node_clone_mapping_copy_comments($comment);
+}

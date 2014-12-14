@@ -1,0 +1,42 @@
+<?php
+
+/**
+ * @file
+ * Node clone mapping installation hooks.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function node_clone_mapping_schema() {
+  $schema['node_clone_map'] = array(
+    'description' => 'Stores the mapping between the nodes cloned.',
+    'fields' => array(
+      'pnid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Primary Key: Unique Node ID.',
+      ),
+      'cnid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Primary Key: Unique Node ID.',
+      ),
+    ),
+    'primary key' => array('pnid', 'cnid'),
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstal().
+ */
+function node_clone_mapping_uninstall() {
+  variable_del('clone_mapping_content_type');
+  variable_del('copy_mapping_comments');
+  variable_del('copy_mapping_comments_hierarchy');
+}
